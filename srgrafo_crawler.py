@@ -6,6 +6,7 @@ import urllib.request
 import time
 import os
 import praw
+import prawcore
 
 def check_for_new_posted_images(limit):
     """checks new posts in the subreddit and adds their urls and titles to a list"""
@@ -24,7 +25,7 @@ def update_flair():
     Does not have test to make sure you have permission
     Will crash if you do not have permissions
     """
-    flair_names = ['Gaming Series', 'Rimworld Tales', 'EDIT', 'Comic']
+    flair_names = ['Gaming Series', 'Rimworld Tales', 'EDIT', 'SrGrafo OC']
     flair_templates = [None for flair in flair_names]
     print('updating flair templates')
 
@@ -108,7 +109,7 @@ def update_comment_images():
     #this is one api call giving us 1000 posts
     check_for_new_posted_images(1000)
     for comment in USER_PROFILE.comments.new(limit=check_limit): #one call
-        if '[EDIT]' in comment.body:
+        if 'EDIT' in comment.body and '](' in comment.body:
             url = comment.body.split('](')[1]
             url = url[:url.find(')')]
             if (is_image(url)) and \
@@ -128,6 +129,9 @@ def update_comment_images():
                                      'context':parent.permalink, 'path':None, \
                                      'nsfw':parent.submission.over_18,
                                      'flair':flair_options[2]})
+                    if IMG_LIST[-1]['title'] in POSTED_IMAGES:
+                        IMG_LIST.pop()
+
                 else:
                     IMG_LIST.append({'url':url, \
                                      'title':parent.title.encode('ascii', 'ignore')\
@@ -136,8 +140,6 @@ def update_comment_images():
                                      'path':None, \
                                      'nsfw':parent.over_18,\
                                      'flair':flair_options[2]})
-                if IMG_LIST[-1]['title'] in POSTED_IMAGES:
-                    IMG_LIST.pop()
 
 def update_post_images():
     """
@@ -180,7 +182,10 @@ def update_post_images():
             IMG_LIST[-1]['flair'] = decide_flair(IMG_LIST[-1], post.subreddit.display_name)
 
             if not FIRST_ITER:
-                post.reply(REPLY_TEMPLATE)
+                if(post.subreddit.display_name.lower() == 'u_srgrafo'):
+                    post.reply(PROFILE_REPLY_TEMPLATE)
+                else:
+                    post.reply(REPLY_TEMPLATE)
 
 def post_all_images():
     """goes through our list of images we created and tries to post them"""
@@ -199,8 +204,8 @@ def post_all_images():
                 submission = post_image(i)
                 retry = 2
                 time.sleep(60*5)
-            except praw.exceptions.APIException as err:
-                #there was a problem with the api, wait for 5 minutes
+            except (prawcore.exceptions.ServerError, praw.exceptions.APIException) as err:
+            #there was a problem with the api, wait for 5 minutes
                 if retry != 0:
                     print("whoops, api error. Trying again in 5 minutes")
                     print(err)
@@ -255,16 +260,19 @@ retry = 2
 flair_options = update_flair()
 
 CONTEXT_TEMPLATE = '[Context for this post!]({:s})\n\nAlso, ' + \
-                   'if you like SrGrafo, [support him on patreon!]' + \
-                   '(https://www.patreon.com/SrGrafo)'
+                   'if you like SrGrafo and want more information, check out his profile ' + \
+                   'here /u/SrGrafo'
 
 TIME_TEMPLATE = 'There are {:d} images to try and post. This will take about {:0.3f} ' + \
                 'minutes, or {:0.3f} hours, or {:0.3f} days.'
 
+PROFILE_REPLY_TEMPLATE = "To never miss one of SrGrafo's posts (or his edits), " + \
+                         'make sure you subscribe to /r/SrGrafo.'
 
-REPLY_TEMPLATE = "To never miss one of SrGrafo's posts (or his edits), " + \
-                 "make sure you subscribe to /r/SrGrafo.\n\nAnd if you like SrGrafo's " + \
-                 'work, [support him on Patreon](https://www.patreon.com/SrGrafo)'
+REPLY_TEMPLATE = PROFILE_REPLY_TEMPLATE + "\n\nAnd if you like SrGrafo's " + \
+                 'work, find more of it on his profile at /u/SrGrafo'
+
+
 
 #download images hosted on reddit since linking seems to not work
 #we need to make sure our folder exists
@@ -277,7 +285,7 @@ POSTED_IMAGES = []
 print('entering loop')
 while True:
     #Checks the flair to make sure all our flair templates are valid
-    update_flair()
+    flair_options = update_flair()
 
     update_post_images()
     update_comment_images()
