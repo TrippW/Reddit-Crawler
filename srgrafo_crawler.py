@@ -89,6 +89,8 @@ def decide_flair(data, sub):
             flair_type = flair_options[1]
         else:
             flair_type = flair_options[3]
+    else:
+        flair_type = flair_options[3]
     return flair_type
 
 def update_comment_images():
@@ -107,22 +109,24 @@ def update_comment_images():
     print('updating comment history')
 
     #this is one api call giving us 1000 posts
-    check_for_new_posted_images(1000)
+    check_for_new_posted_images(check_limit)
     for comment in USER_PROFILE.comments.new(limit=check_limit): #one call
-        if 'EDIT' in comment.body and '](' in comment.body:
-            url = comment.body.split('](')[1]
+        body_text = comment.body
+        if 'EDIT' in body_text and '](' in body_text:
+            url = body_text.split('](')[1]
             url = url[:url.find(')')]
             if (is_image(url)) and \
                (url not in IMG_LIST) and \
                (url not in POSTED_LINKS) and \
                (url not in POSTED_IMAGES):
-
+                print('this looks new')
                 #This is our choke point. We are only allowed 60 calls per minute. Each call to
                 #parent is an api call. If we haven't eliminated any from our posts and every one is
                 #an edit, that's 1000 calls here. This can take a maximum of 1000/60 minutes or
                 #about 17 minutes
                 parent = comment.parent()
                 if type(parent) is praw.models.Comment:
+                    print('parent is a comment')
                     IMG_LIST.append({'url':url, \
                                      'title':parent.body.replace('\n', ' ') \
                                      .encode('ascii', 'ignore').decode('ascii')[:300], \
@@ -130,9 +134,12 @@ def update_comment_images():
                                      'nsfw':parent.submission.over_18,
                                      'flair':flair_options[2]})
                     if IMG_LIST[-1]['title'] in POSTED_IMAGES:
+                        print('wasn\'t new')
+                        add_image_to_list(IMG_LIST[-1]['url'])
                         IMG_LIST.pop()
 
                 else:
+                    print('parent is a post')
                     IMG_LIST.append({'url':url, \
                                      'title':parent.title.encode('ascii', 'ignore')\
                                      .decode('ascii')[:300], \
@@ -140,6 +147,7 @@ def update_comment_images():
                                      'path':None, \
                                      'nsfw':parent.over_18,\
                                      'flair':flair_options[2]})
+                print(IMG_LIST[-1])
 
 def update_post_images():
     """
@@ -157,23 +165,18 @@ def update_post_images():
 
     print('updating post history')
 
-    #this is one api call giving us 1000 posts
-    check_for_new_posted_images(1000)
+    #this is one api call giving us 100 posts
+    check_for_new_posted_images(check_limit)
 
     for post in USER_PROFILE.submissions.new(limit=check_limit):
         if (post.url) and \
            (post.url not in IMG_LIST) and \
            (is_image(post.url)) and \
-           (post.subreddit.display_name.lower() in ALLOWED_SUBS) and \
+           (post.subreddit.display_name.lower() not in BLACKLIST_SUBS) and \
            (post.url not in POSTED_LINKS) and \
            (post.url not in POSTED_IMAGES) and \
            (post.title.encode('ascii', 'ignore').decode('ascii')[:300] not in POSTED_IMAGES):
             path = None
-            if 'redd.it' in post.url:
-                path = './images'+post.url[post.url.find('.it/')+3:]
-                if not is_image(path):
-                    path += '.png'
-                urllib.request.urlretrieve(post.url, path)
             IMG_LIST.append({'url':post.url, \
                              'title':post.title.encode('ascii', 'ignore').decode('ascii')[:300], \
                              'context':post.permalink, \
@@ -197,53 +200,62 @@ def post_all_images():
             #this line is duplicated in both parts because we want it to happen before the 8
             #minute pause
             add_image_to_list(i['url'])
+            if i in IMG_LIST:
+                    IMG_LIST.remove(i)
         else:
             print('submitting image {:40s} image #: {:3d}  complete: {:3.2f}%'.format( \
                 i['title'][:40], iter_list.index(i)+1, ((iter_list.index(i)+1)*100/len(iter_list))))
             try:
                 submission = post_image(i)
-                retry = 2
-                time.sleep(60*5)
-            except (prawcore.exceptions.ServerError, praw.exceptions.APIException) as err:
+                #remove the image from our list
+                if i in IMG_LIST:
+                    IMG_LIST.remove(i)
+            except praw.exceptions.APIException as err:
             #there was a problem with the api, wait for 5 minutes
-                if retry != 0:
-                    print("whoops, api error. Trying again in 5 minutes")
-                    print(err)
-                    retry -= 1
-                else:
-                    raise Exception("Failed 3 times. End program")
-                time.sleep(60*5) #try again in 5 minutes
-            except praw.exceptions.ClientException:
+                print("whoops, api error. Trying again in 30 seconds")
+                print(err)
+                time.sleep(30) #try again in 5 minutes
+            except praw.exceptions.ClientException as err:
                 #socket issue with the upload. It may have gone through
                 print('Likely a socket issue. Wait 30 seconds to check')
+                print(err)
                 time.sleep(30)
                 #checking if the post went through to see if we need to post again or
                 #if we successfully posted the image
-                if i['title'] not in [x.title for x in SUBREDDIT.new(limit=100)]:
+                if i['title'] not in [x.title for x in SUBREDDIT.new(limit=check_limit)]:
                     #try to post it again
                     print('Wasn\'t posted, try uploading again')
                     submission = post_image(i)
                 else:
                     print('it was posted.')
                     #we posted the image, so we need to find it so we can post the context
-                    for sub_post in SUBREDDIT.new(limit=100):
+                    for sub_post in SUBREDDIT.new(limit=check_limit):
                         if sub_post.title == i['title']:
                             submission = sub_post
                             break
                 #post the context comment
                 submission.reply(CONTEXT_TEMPLATE.format(i['context']))
                 add_image_to_list(i['url'])
-                print('waiting for 3 minutes before we post our next image')
-                time.sleep(60*3)
-        #remove the image from our list
-        if i in IMG_LIST:
-            IMG_LIST.remove(i)
+                #remove the image from our list
+                if i in IMG_LIST:
+                    IMG_LIST.remove(i)
+            except prawcore.exceptions.ServerError as err:
+                if '503' in err:
+                    print('503 error! Wait 10 minutes and try again')
+                    sleep(10*60)
+                else:
+                    print('Some other server error happened. Wait 2 minutes and try again')
+                    sleep(2*60)
+                
+            except Exception as err:
+                print("There was a problem.")
+                print(err)
 
 
 IMG_LIST = []
 POSTED_LINKS = []
 
-ALLOWED_SUBS = ['gaming', 'rimworld', 'u_srgrafo', 'funny', 'comics']
+BLACKLIST_SUBS = ['rpvoid', 'pixelart', 'srgrafo', 'animesketch', 'animegifs']
 
 if os.path.exists('./posted_links.txt') and os.path.isfile('./posted_links.txt'):
     with open('posted_links.txt', 'r') as link_file:
@@ -255,7 +267,6 @@ REDDIT = log_in()
 USER_PROFILE = REDDIT.redditor('SrGrafo')
 SUBREDDIT = REDDIT.subreddit('SrGrafo')
 FIRST_ITER = True
-retry = 2
 
 flair_options = update_flair()
 
@@ -280,7 +291,7 @@ if not os.path.exists('./images'):
     os.mkdir('./images')
 
 #how many items deep we want to check
-check_limit = 1000
+check_limit = 300
 POSTED_IMAGES = []
 print('entering loop')
 while True:
@@ -293,9 +304,6 @@ while True:
     #post oldest comment first, then newest comment, then oldest post, then newest post
     iter_list = IMG_LIST[::-1]
 
-    #time estimate
-    print(TIME_TEMPLATE.format(len(IMG_LIST), len(IMG_LIST)*5, len(IMG_LIST)*5/60, \
-                               ((len(IMG_LIST)*5)/60)/24))
     print('start posting')
     post_all_images()
 
