@@ -38,7 +38,7 @@ def update_flair():
 
 def is_image(url):
     """checks if the url is an image"""
-    return ('i.redd.it' in url) or (url[-4:] in ['.jpg', '.png', 'jpeg', '.gif'])
+    return ('i.redd.it' in url) or (url.split('.')[-1] in ['jpg', 'png', 'jpeg', 'gif'])
 
 def add_image_to_list(image):
     """record when we post an image"""
@@ -59,25 +59,29 @@ def log_in():
 
 def post_image(data):
     """post image to the subreddit"""
+    #The post we created
     submission = None
-    if data['path']:
-        submission = SUBREDDIT.submit_image(data['title'], \
-                                            data['path'], \
-                                            flair_id=data['flair'])
-    else:
-        submission = SUBREDDIT.submit(data['title'], \
-                                      url=data['url'], \
-                                      flair_id=data['flair'])
+    #Create the post
+    submission = SUBREDDIT.submit(data['title'], \
+                                  url=data['url'], \
+                                  flair_id=data['flair'])
+    #If the original post was nsfw, mark this nsfw
     if data['nsfw']:
         submission.mod.nsfw()
-    submission.reply(CONTEXT_TEMPLATE.format(data['context']))
+    #reply to the post we just made
+    submission.reply(CONTEXT_TEMPLATE.format(data['data'].replace('\n', '. ') \
+                                             .replace('. . ', '. ') \
+                                             .replace('..', '.') \
+                                             .replace('?.', '?') \
+                                             .replace('!.', '!'), \
+                                             data['context']))
     add_image_to_list(data['url'])
     return submission
 
 def decide_flair(data, sub):
     """categorize the post to the appropriate flair"""
     sub = sub.lower()
-
+    
     flair_type = None
 
     if sub == 'gaming':
@@ -112,43 +116,47 @@ def update_comment_images():
     check_for_new_posted_images(check_limit)
     for comment in USER_PROFILE.comments.new(limit=check_limit): #one call
         body_text = comment.body
+        #Check if post is a comic (denoted by the famous edit)
         if 'EDIT' in body_text and '](' in body_text:
+            #get the URL from the edit
             url = body_text.split('](')[1]
             url = url[:url.find(')')]
+            #Check that it is an image and not already posted
             if (is_image(url)) and \
                (url not in IMG_LIST) and \
                (url not in POSTED_LINKS) and \
                (url not in POSTED_IMAGES):
                 print('this looks new')
-                #This is our choke point. We are only allowed 60 calls per minute. Each call to
-                #parent is an api call. If we haven't eliminated any from our posts and every one is
-                #an edit, that's 1000 calls here. This can take a maximum of 1000/60 minutes or
-                #about 17 minutes
+                data = 'Link to the original post!'
                 parent = comment.parent()
-                if type(parent) is praw.models.Comment:
-                    print('parent is a comment')
-                    IMG_LIST.append({'url':url, \
-                                     'title':parent.body.replace('\n', ' ') \
-                                     .encode('ascii', 'ignore').decode('ascii')[:300], \
-                                     'context':parent.permalink, 'path':None, \
-                                     'nsfw':parent.submission.over_18,
-                                     'flair':flair_options[2]})
-                    if IMG_LIST[-1]['title'] in POSTED_IMAGES:
-                        print('wasn\'t new')
-                        add_image_to_list(IMG_LIST[-1]['url'])
-                        IMG_LIST.pop()
-
-                else:
+                nsfw = None
+                #gather the correct data from the parent comment or submission
+                #and parse out the title
+                if comment.is_root:
                     print('parent is a post')
-                    IMG_LIST.append({'url':url, \
-                                     'title':parent.title.encode('ascii', 'ignore')\
-                                     .decode('ascii')[:300], \
-                                     'context':parent.permalink, \
-                                     'path':None, \
-                                     'nsfw':parent.over_18,\
-                                     'flair':flair_options[2]})
-                print(IMG_LIST[-1])
+                    title = parent.title.encode('ascii', 'ignore').decode('ascii')[:300]
+                    nsfw = parent.over_18
+                else:
+                    print('parent is a comment')
+                    title = 'EDIT to {:s}'.format(parent.author.name)
+                    data = parent.body
+                    #check if we somehow got a duplicate post through the cracks
+                    if title in POSTED_IMAGES:
+                        print('wasn\'t new')
+                        add_image_to_list(url)
+                        continue
+                    nsfw = parent.submission.over_18
 
+                #add to the list of posts to make
+                IMG_LIST.append({'url':url, \
+                                 'title':title, \
+                                 'context':parent.permalink,\
+                                 'nsfw':nsfw,\
+                                 'flair':flair_options[2], \
+                                 'data':data})
+                if IMG_LIST:
+                    print(IMG_LIST[-1])
+                    
 def update_post_images():
     """
     get all submissions. Use the same title. Check if the image has been posted before
@@ -169,6 +177,7 @@ def update_post_images():
     check_for_new_posted_images(check_limit)
 
     for post in USER_PROFILE.submissions.new(limit=check_limit):
+        #check if the submission is a link to an image, has not been posted before, is not from a blacklisted subreddit
         if (post.url) and \
            (post.url not in IMG_LIST) and \
            (is_image(post.url)) and \
@@ -176,14 +185,14 @@ def update_post_images():
            (post.url not in POSTED_LINKS) and \
            (post.url not in POSTED_IMAGES) and \
            (post.title.encode('ascii', 'ignore').decode('ascii')[:300] not in POSTED_IMAGES):
-            path = None
+            
             IMG_LIST.append({'url':post.url, \
                              'title':post.title.encode('ascii', 'ignore').decode('ascii')[:300], \
                              'context':post.permalink, \
-                             'path':path, \
-                             'nsfw':post.over_18})
-            IMG_LIST[-1]['flair'] = decide_flair(IMG_LIST[-1], post.subreddit.display_name)
-
+                             'nsfw':post.over_18,
+                             'data':'Link to the original post!',\
+                             'flair': decide_flair(IMG_LIST[-1], post.subreddit.display_name)})
+            #if we're playing catchup, we do not want to post redirect links to the subreddit.
             if not FIRST_ITER:
                 if(post.subreddit.display_name.lower() == 'u_srgrafo'):
                     post.reply(PROFILE_REPLY_TEMPLATE)
@@ -270,12 +279,11 @@ FIRST_ITER = True
 
 flair_options = update_flair()
 
-CONTEXT_TEMPLATE = '[Context for this post!]({:s})\n\nAlso, ' + \
+CONTEXT_TEMPLATE = '[Context for the post: {:s}]({:s})\n\nAlso, ' + \
                    'if you like SrGrafo and want more information, check out his profile ' + \
-                   'here /u/SrGrafo'
-
-TIME_TEMPLATE = 'There are {:d} images to try and post. This will take about {:0.3f} ' + \
-                'minutes, or {:0.3f} hours, or {:0.3f} days.'
+                   'here /u/SrGrafo\n\nIf you have any suggestions or need to get a hold of me, ' + \
+                   'just reply to this post or shoot me a message. This is my main account as ' + \
+                   'well, so I see all your messages.'
 
 PROFILE_REPLY_TEMPLATE = "To never miss one of SrGrafo's posts (or his edits), " + \
                          'make sure you subscribe to /r/SrGrafo.'
