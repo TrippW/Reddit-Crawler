@@ -138,7 +138,8 @@ def update_comment_images():
                     nsfw = parent.over_18
                 else:
                     print('parent is a comment')
-                    title = 'EDIT to {:s}'.format(parent.author.name)
+                    person = parent.author.name if (parent.author) else 'Mystery user'
+                    title = 'EDIT to {:s}'.format(person)
                     data = parent.body
                     #check if we somehow got a duplicate post through the cracks
                     if title in POSTED_IMAGES:
@@ -185,13 +186,13 @@ def update_post_images():
            (post.url not in POSTED_LINKS) and \
            (post.url not in POSTED_IMAGES) and \
            (post.title.encode('ascii', 'ignore').decode('ascii')[:300] not in POSTED_IMAGES):
-            
+            title = post.title.encode('ascii', 'ignore').decode('ascii')[:300]
             IMG_LIST.append({'url':post.url, \
-                             'title':post.title.encode('ascii', 'ignore').decode('ascii')[:300], \
+                             'title':title, \
                              'context':post.permalink, \
                              'nsfw':post.over_18,
                              'data':'Link to the original post!',\
-                             'flair': decide_flair(IMG_LIST[-1], post.subreddit.display_name)})
+                             'flair': decide_flair({'title':title}, post.subreddit.display_name)})
             #if we're playing catchup, we do not want to post redirect links to the subreddit.
             if not FIRST_ITER:
                 if(post.subreddit.display_name.lower() == 'u_srgrafo'):
