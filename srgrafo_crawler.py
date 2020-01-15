@@ -15,8 +15,7 @@ def check_for_new_posted_images(limit):
     for post in new_posts:
         if post.url not in POSTED_IMAGES:
             POSTED_IMAGES.append(post.url)
-        if post.title not in POSTED_IMAGES:
-            POSTED_IMAGES.append(post.title)
+            add_image_to_list(post.url)
 
 def update_flair():
     """
@@ -43,10 +42,11 @@ def is_image(url):
 def add_image_to_list(image):
     """record when we post an image"""
     global POSTED_LINKS
-    if image not in POSTED_LINKS:
-        POSTED_LINKS.append(image)
+    url = image.encode('ascii', 'backslashreplace').decode('ascii')
+    if url not in POSTED_LINKS:
+        POSTED_LINKS.append(url)
         with open('posted_links.txt', 'a') as file:
-            file.write(image+'\n')
+           file.write(url+'\n')
 
 def log_in():
     """
@@ -69,11 +69,14 @@ def post_image(data):
     if data['nsfw']:
         submission.mod.nsfw()
     #reply to the post we just made
-    submission.reply(CONTEXT_TEMPLATE.format(data['data'].replace('\n', '. ') \
-                                             .replace('. . ', '. ') \
-                                             .replace('..', '.') \
-                                             .replace('?.', '?') \
-                                             .replace('!.', '!'), \
+    t_name = data['data'].replace('\n', '. ') \
+             .replace('. . ', '. ') \
+             .replace('..', '.') \
+             .replace('?.', '?') \
+             .replace('!.', '!')
+    if t_name[-1] in ('\\', '/'):
+        t_name = t_name[:-1]
+    submission.reply(CONTEXT_TEMPLATE.format(t_name, \
                                              data['context']))
     add_image_to_list(data['url'])
     return submission
@@ -141,11 +144,6 @@ def update_comment_images():
                     person = parent.author.name if (parent.author) else 'Mystery user'
                     title = 'EDIT to {:s}'.format(person)
                     data = parent.body
-                    #check if we somehow got a duplicate post through the cracks
-                    if title in POSTED_IMAGES:
-                        print('wasn\'t new')
-                        add_image_to_list(url)
-                        continue
                     nsfw = parent.submission.over_18
 
                 #add to the list of posts to make
@@ -307,7 +305,7 @@ while True:
     #Checks the flair to make sure all our flair templates are valid
     flair_options = update_flair()
 
-    update_post_images()
+    #update_post_images()
     update_comment_images()
 
     #post oldest comment first, then newest comment, then oldest post, then newest post

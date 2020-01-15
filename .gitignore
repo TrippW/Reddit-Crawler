@@ -104,3 +104,4 @@ praw.ini
 # application specific
 images/
 posted_links.txt
+posted_links-backup.txt
