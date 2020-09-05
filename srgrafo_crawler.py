@@ -7,6 +7,7 @@ import time
 import os
 import praw
 import prawcore
+import re
 
 def check_for_new_posted_images(limit):
     """checks new posts in the subreddit and adds their urls and titles to a list"""
@@ -81,6 +82,10 @@ def decide_flair(data, sub):
         flair_type = flair_options[3]
     return flair_type
 
+def remove_nested_links(text):
+    '''Removes the link portion of text and replaces it with the hyperlink text'''
+    return ''.join(re.split('\[([^\n\r]+)\]\([^\n\r]+\)', text))
+
 def update_comment_images():
     """
     get all comments, check if they contain the coveted [edit] text to note an image
@@ -124,7 +129,7 @@ def update_comment_images():
                     print('parent is a comment')
                     person = parent.author.name if (parent.author) else 'Mystery user'
                     title = 'EDIT to {:s}'.format(person)
-                    data = parent.body
+                    data = remove_nested_links(parent.body)
                     nsfw = parent.submission.over_18
 
                 #add to the list of posts to make
