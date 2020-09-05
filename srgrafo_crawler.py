@@ -270,7 +270,7 @@ REDDIT = log_in()
 
 #setup
 USER_PROFILE = REDDIT.redditor('SrGrafo')
-SUBREDDIT = REDDIT.subreddit('SrGrafo')
+SUBREDDIT = REDDIT.subreddit('edit')
 FIRST_ITER = True
 
 CONTEXT_TEMPLATE = '[Context for the post: {:s}]({:s})\n\nAlso, ' + \
