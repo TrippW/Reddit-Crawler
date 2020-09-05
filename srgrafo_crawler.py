@@ -17,24 +17,6 @@ def check_for_new_posted_images(limit):
             POSTED_IMAGES.append(post.url)
             add_image_to_list(post.url)
 
-def update_flair():
-    """
-    updates flair to get link templates
-    Note: Need to have mod permission for this to work
-    Does not have test to make sure you have permission
-    Will crash if you do not have permissions
-    """
-    flair_names = ['Gaming Series', 'Rimworld Tales', 'EDIT', 'SrGrafo OC']
-    flair_templates = [None for flair in flair_names]
-    print('updating flair templates')
-
-    for template in SUBREDDIT.flair.link_templates:
-        if template['text'] and template['text'] in flair_names:
-            flair_templates[flair_names.index(template['text'])] = template['id']
-
-    return flair_templates
-
-
 def is_image(url):
     """checks if the url is an image"""
     return ('i.redd.it' in url) or (url.split('.')[-1] in ['jpg', 'png', 'jpeg', 'gif'])
@@ -50,9 +32,9 @@ def add_image_to_list(image):
 
 def log_in():
     """
-	log in to reddit
-	uses a praw.ini file to hold sensitive information
-	"""
+    log in to reddit
+    uses a praw.ini file to hold sensitive information
+    """
 	
     return praw.Reddit(redirect_uri='http://localhost:8080', \
                        user_agent='SrGrafo Scraper by /u/devTripp')
