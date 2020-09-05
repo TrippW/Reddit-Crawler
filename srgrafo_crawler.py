@@ -63,8 +63,7 @@ def post_image(data):
     submission = None
     #Create the post
     submission = SUBREDDIT.submit(data['title'], \
-                                  url=data['url'], \
-                                  flair_id=data['flair'])
+                                  url=data['url'])
     #If the original post was nsfw, mark this nsfw
     if data['nsfw']:
         submission.mod.nsfw()
@@ -151,7 +150,6 @@ def update_comment_images():
                                  'title':title, \
                                  'context':parent.permalink,\
                                  'nsfw':nsfw,\
-                                 'flair':flair_options[2], \
                                  'data':data})
                 if IMG_LIST:
                     print(IMG_LIST[-1])
@@ -189,8 +187,7 @@ def update_post_images():
                              'title':title, \
                              'context':post.permalink, \
                              'nsfw':post.over_18,
-                             'data':'Link to the original post!',\
-                             'flair': decide_flair({'title':title}, post.subreddit.display_name)})
+                             'data':'Link to the original post!'})
             #if we're playing catchup, we do not want to post redirect links to the subreddit.
             if not FIRST_ITER:
                 if(post.subreddit.display_name.lower() == 'u_srgrafo'):
@@ -276,8 +273,6 @@ USER_PROFILE = REDDIT.redditor('SrGrafo')
 SUBREDDIT = REDDIT.subreddit('SrGrafo')
 FIRST_ITER = True
 
-flair_options = update_flair()
-
 CONTEXT_TEMPLATE = '[Context for the post: {:s}]({:s})\n\nAlso, ' + \
                    'if you like SrGrafo and want more information, check out his profile ' + \
                    'here /u/SrGrafo\n\nIf you have any suggestions or need to get a hold of me, ' + \
@@ -302,9 +297,6 @@ check_limit = 300
 POSTED_IMAGES = []
 print('entering loop')
 while True:
-    #Checks the flair to make sure all our flair templates are valid
-    flair_options = update_flair()
-
     #update_post_images()
     update_comment_images()
 
