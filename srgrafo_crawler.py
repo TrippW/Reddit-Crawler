@@ -63,6 +63,11 @@ def remove_nested_links(body):
     return ''.join(re.split(r'\[([^\n\r]]+)\]\([^\n\r)]+\)', body))
 
 
+def is_image_link(link):
+    return ('i.redd.it' in link) \
+           or (link.split('.')[-1] in ['jpg', 'png', 'jpeg', 'gif'])
+
+
 def clean_body(body):
     body = remove_nested_links(body)
     body = body.replace('\n', '. ').replace('..', '.')\
@@ -145,10 +150,6 @@ class RedditBot:
                 self.update_last_known_post_time(post.created_utc)
                 self.post_context(post, submission)
             self.parent_cache = None
-
-    def is_image_link(link):
-        return ('i.redd.it' in link) \
-               or (url.split('.')[-1] in ['jpg', 'png', 'jpeg', 'gif'])
 
     def is_approved_text(self, text):
         return text.lower().strip(' \n!@#$%^&*()_-+=,<.>/?;:[]{}\\|`~"'+"'") \
