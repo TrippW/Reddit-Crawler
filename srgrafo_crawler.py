@@ -19,7 +19,8 @@ CONTEXT_TEMPLATE = '[Context for the post: {:s}]({:s})' \
     + NL + 'If you have any suggestions or need to ' \
     + 'get a hold of me, just reply to this post or shoot ' \
     + 'me a message. This is my main account as ' \
-    + 'well, so I see all your messages.'
+    + 'well, so I see all your messages.' \
+    + NL + 'Source Code found [here](https://github.com/TrippW/Reddit-Crawler)'
 USER_MENTION_TEMPLATE = 'User Mention: /u/{:s}'
 
 SRGRAFO_LAST_POST_TIME_FILE = 'grafo_post_time'
@@ -117,7 +118,8 @@ class RedditBot:
                 sleep(60)
 
     def can_skip(self, post):
-        return post.created_utc < self.last_known_post_time_utc
+        created_utc = datetime.utcfromtimestamp(post.created_utc)
+        return created_utc < self.last_known_post_time_utc
 
     def try_update(self):
         last_update = self.last_update
