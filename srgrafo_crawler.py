@@ -124,11 +124,13 @@ class RedditBot:
 
     def try_update(self):
         last_update = self.last_update
-        if datetime.utcnow() - last_update() >= timedelta(days=1) \
+
+        if datetime.utcnow() - last_update >= timedelta(days=1) \
                 or UPDATE_FILES_EACH_TRY:
-            if getmtime(self.approved_text_file) > last_update:
+            last_update_timestamp = last_update.timestamp()
+            if getmtime(self.approved_text_file) > last_update_timestamp:
                 self.approved_text = self.get_approved_text()
-            if getmtime(self.ignored_subreddit_file) > last_update:
+            if getmtime(self.ignored_subreddit_file) > last_update_timestamp:
                 self.ignored_subreddits = self.get_ignored_subreddits()
             self.last_update = datetime.utcnow()
 
