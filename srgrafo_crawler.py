@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timedelta
 from os.path import exists, getmtime
 from time import sleep
-
+import traceback
 import praw
 
 NL = '\n\n'
@@ -114,6 +114,7 @@ class RedditBot:
                     self.process(post)
 
             except Exception as e:
+                print(traceback.format_exc())
                 log(str(e))
                 sleep(60)
 
@@ -181,6 +182,7 @@ class RedditBot:
                 submission.reply(reply)
                 return None
             except Exception as e:
+                print(traceback.format_exc())
                 log(str(e))
                 log('Failed to post context, try again in 5 seconds...')
                 sleep(5)
