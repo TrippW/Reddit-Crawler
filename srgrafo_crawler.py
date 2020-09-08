@@ -125,7 +125,8 @@ class RedditBot:
 
     def can_skip(self, post):
         created_utc = datetime.utcfromtimestamp(post.created_utc)
-        return created_utc < self.last_known_post_time_utc
+        return (created_utc < self.last_known_post_time_utc) \
+            or ('template' in post.body.lower())
 
     def try_update(self):
         last_update = self.last_update
@@ -167,9 +168,11 @@ class RedditBot:
             person = parent.author.name if (parent.author) else 'mystery user'
             return f'EDIT to {person}'
 
-    def update_last_known_post_time(self, time):
+    def update_last_known_post_time(self, t):
+        if type(t) is float:
+            t = datetime.fromtimestamp(t)
         with open(SRGRAFO_LAST_POST_TIME_FILE, 'w') as file:
-            file.write(datetime.strftime(time))
+            file.write(t.isoformat())
 
     def post_context(self, post, submission):
         while True:
@@ -203,9 +206,11 @@ if __name__ == '__main__':
     for file in FILES:
         create_file_if_missing(file)
 
-    last_post_time = get_text_from_file(SRGRAFO_LAST_POST_TIME_FILE)
+    last_post_time = get_text_from_file(SRGRAFO_LAST_POST_TIME_FILE)[0]
     if last_post_time is None or not last_post_time:
-        last_post_time = datetime.now()
+        last_post_time = datetime.utcnow()
+    else:
+        last_post_time = datetime.fromisoformat(last_post_time)
 
     bot = RedditBot(last_post_time,
                     SRGRAFO_APPROVED_TEXT_FILE,
