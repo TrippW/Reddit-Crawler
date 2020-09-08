@@ -71,7 +71,7 @@ def is_image_link(link):
 def clean_body(body):
     body = remove_nested_links(body)
     body = body.replace('\n', '. ').replace('..', '.')\
-        .replace('?.', '?').replace('!.', body, '!')
+        .replace('?.', '?').replace('!.', '!')
     if body[-1] in ('\\', '/'):
         body = body[:-1]
     return body
