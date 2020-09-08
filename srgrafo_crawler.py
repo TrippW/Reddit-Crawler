@@ -157,8 +157,9 @@ class RedditBot:
                in self.approved_text
 
     def post(self, post, link):
-        log('posting {link} to {self.SUBREDDIT.display_name}')
-        return self.SUBREDDIT.submit(self.generate_post_name(post), url=link)
+        title = self.generate_post_title(post)
+        log(f'posting {link} to {self.SUBREDDIT.display_name} : {title[:100]}')
+        return self.SUBREDDIT.submit(title, url=link)
 
     def generate_post_title(self, post):
         parent = self.parent_cache = post.parent()
