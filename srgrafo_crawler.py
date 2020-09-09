@@ -171,7 +171,7 @@ class RedditBot:
 
     def update_last_known_post_time(self, t):
         if type(t) is float:
-            t = datetime.fromtimestamp(t)
+            t = datetime.utcfromtimestamp(t)
         with open(SRGRAFO_LAST_POST_TIME_FILE, 'w') as file:
             file.write(t.isoformat())
         self.last_known_post_time_utc = t
