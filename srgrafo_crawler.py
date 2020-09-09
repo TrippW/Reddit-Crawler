@@ -60,7 +60,7 @@ def remove_nested_links(body):
     """Removes the link portion of text and replaces it with the
     hyperlink text
     """
-    return ''.join(re.split(r'\[([^\n\r]]+)\]\([^\n\r)]+\)', body))
+    return ''.join(re.split(r'\[([^\n\r\]]+)\]\([^\n\r)]+\)', body))
 
 
 def is_image_link(link):
@@ -70,7 +70,7 @@ def is_image_link(link):
 
 def clean_body(body):
     body = remove_nested_links(body)
-    body = body.replace('\n', '. ').replace('..', '.')\
+    body = body.replace('\u200b', ' ').replace('\n', '. ').replace('..', '.')\
         .replace('?.', '?').replace('!.', '!')
     if body[-1] in ('\\', '/'):
         body = body[:-1]
@@ -196,7 +196,9 @@ class RedditBot:
                 sleep(5)
 
     def get_parent_body(self):
-        text = self.parent_cache.title if type(self.parent_cache) is praw.models.Submission else self.parent_cache.body
+        text = self.parent_cache.title \
+            if type(self.parent_cache) is praw.models.Submission else \
+            self.parent_cache.body
         return clean_body(text)
 
 
