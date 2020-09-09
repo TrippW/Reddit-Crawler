@@ -196,7 +196,8 @@ class RedditBot:
                 sleep(5)
 
     def get_parent_body(self):
-        return clean_body(self.parent_cache.body)
+        text = self.parent_cache.title if type(self.parent_cache) is praw.models.Submission else self.parent_cache.body
+        return clean_body(text)
 
 
 if __name__ == '__main__':
