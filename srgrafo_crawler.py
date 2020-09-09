@@ -125,7 +125,7 @@ class RedditBot:
 
     def can_skip(self, post):
         created_utc = datetime.utcfromtimestamp(post.created_utc)
-        return (created_utc < self.last_known_post_time_utc) \
+        return (created_utc <= self.last_known_post_time_utc) \
             or ('template' in post.body.lower())
 
     def try_update(self):
@@ -174,6 +174,7 @@ class RedditBot:
             t = datetime.fromtimestamp(t)
         with open(SRGRAFO_LAST_POST_TIME_FILE, 'w') as file:
             file.write(t.isoformat())
+        self.last_known_post_time_utc = t
 
     def post_context(self, post, submission):
         while True:
