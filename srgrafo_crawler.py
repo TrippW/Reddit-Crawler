@@ -185,7 +185,7 @@ class RedditBot:
                 if post.submission.over_18:
                     reply = NSFW_WARNING + NL + reply
                 author = self.parent_cache.author
-                if author:
+                if author and author.name.lower() != 'srgrafo':
                     reply += NL + USER_MENTION_TEMPLATE.format(author.name)
                 submission.reply(reply)
                 return None
